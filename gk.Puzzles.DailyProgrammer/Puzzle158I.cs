@@ -57,8 +57,8 @@ namespace gk.Puzzles.DailyProgrammer
     /// Try making your own buildings as well instead of just testing the samples. 
     /// Don't forget to include your favourite ASCII construction with your solution!
     /// </additional>
-    [Puzzle("158_I")]
-    public class Puzzle158 : IPuzzle
+    [Puzzle("158I")]
+    public class Puzzle158I : IPuzzle
     {
         private const string _numeric = "123456789";
         private const string _alpha = "abcdefghij";
@@ -142,17 +142,6 @@ namespace gk.Puzzles.DailyProgrammer
                 sb.Append(Environment.NewLine);
             }
             return sb.ToString();
-        }
-    }
-
-    public static class Extensions
-    {
-        public static void Times(this int times, Action action)
-        {
-            for (int i = 0; i < times; i++)
-            {
-                action();
-            }
         }
     }
 }
