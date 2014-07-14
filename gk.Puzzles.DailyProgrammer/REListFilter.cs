@@ -38,7 +38,9 @@ namespace gk.Puzzles.DailyProgrammer
                  foreach(var reg in GenerateRegexs(item))
                      scores[reg.Key] = reg.Value;
             }
+            scores = ExpandStringWithSetVariants(scores);
             scores = ExpandStringWithAllDotVariants(scores);
+
             scores = calculateScore(scores, SetA, SetB); // rank the generated regexs by most successful SetA matches which have 0 SetB matches.
 
             var remaining = SetA;
@@ -56,6 +58,19 @@ namespace gk.Puzzles.DailyProgrammer
                 re = re.Substring(0, re.Length - 1);
 
             return re;
+        }
+
+        private Dictionary<string, int> ExpandStringWithSetVariants(Dictionary<string, int> scores)
+        {
+            var result = new Dictionary<string, int>();
+            foreach (var re in scores)
+            {
+                if (re.Key.Contains("^") || re.Key.Contains("$") || re.Key.Contains("-")) continue;
+                
+                result[re.Key] = re.Value;
+                result["[" + re.Key + "]"] = re.Value;
+            }
+            return result;
         }
 
         private Dictionary<string, int> calculateScore(Dictionary<string,int> res, List<string> SetA, List<string> SetB)
@@ -117,7 +132,9 @@ namespace gk.Puzzles.DailyProgrammer
             if (ndx >= item.Length) return result;
             
             var tmp = item.ToCharArray();
-            if(tmp[ndx] != '^' && tmp[ndx] != '$') // skip start and end line characters.
+            if (item.Contains("[") || item.Contains("]")) return result;
+
+            if (tmp[ndx] != '^' && tmp[ndx] != '$') // skip start and end line characters.
                 tmp[ndx] = '.';
             string n = new string(tmp);
             result[n] = 0;
