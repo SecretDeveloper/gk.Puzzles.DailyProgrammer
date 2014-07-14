@@ -65,12 +65,16 @@ namespace gk.Puzzles.DailyProgrammer
             var remaining = SetA;
             foreach (var re in res)
             {
-                if (!Contains(re.Key, remaining, SetB)) continue;
-                
-                int inclusion = SetA.Count(s => Regex.IsMatch(s, re.Key));
-                //inclusion -= re.Key.Length;  // a dumb way to calculate a score but it might work for now.
+                if (!Contains(re.Key, SetA, SetB)) continue;
+                int score = SetA.Count(s => Regex.IsMatch(s, re.Key));
 
-                results[re.Key] = inclusion;
+                if (Contains(re.Key, remaining, SetB))
+                {
+                    remaining = remaining.Where(x => !Regex.IsMatch(x, re.Key)).ToList();
+                    score += remaining.Count(s => Regex.IsMatch(s, re.Key));
+                }
+
+                results[re.Key] = score;
             }
             return results;
         }
