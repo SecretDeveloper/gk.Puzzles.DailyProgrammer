@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using gk.Puzzles.DailyProgrammer;
 
@@ -124,11 +125,19 @@ elizabeth";
                 , A.Split('\n').ToList()
                 , B.Split('\n').ToList().Except(A.Split('\n').ToList()).ToList()));
 
-            var o = reg.Run(A, B);
-
-            Assert.IsTrue(reg.Validate(o.ToString()
+            Assert.IsTrue(reg.Validate("a.a|a..i|j|oo|a.t|i..o|i..n|bu|n.e|ay.|r.e$|tr|po|v.l"
                 , A.Split('\n').ToList()
                 , B.Split('\n').ToList().Except(A.Split('\n').ToList()).ToList()));
+
+            var o = reg.Run(A, B);
+
+             var SetA = A.Split('\n').ToList();
+            var SetB = B.Split('\n').ToList().Except(A.Split('\n').ToList()).ToList();
+
+            var notMatched = SetA.Where(x => Regex.IsMatch(x, o.ToString()) == false);
+            var matchedB = SetB.Where(x => Regex.IsMatch(x, o.ToString()));
+
+            Assert.IsTrue(reg.Validate(o.ToString(), SetA, SetB));
 
         }
     }

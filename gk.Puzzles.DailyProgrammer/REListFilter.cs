@@ -38,10 +38,12 @@ namespace gk.Puzzles.DailyProgrammer
                  foreach(var reg in GenerateRegexs(item))
                      scores[reg.Key] = reg.Value;
             }
-            scores = ExpandStringWithSetVariants(scores);
+            
+            //scores = ExpandStringWithSetVariants(scores);
             scores = ExpandStringWithAllDotVariants(scores);
 
-            scores = calculateScore(scores, SetA, SetB); // rank the generated regexs by most successful SetA matches which have 0 SetB matches.
+            //scores = calculateScore(scores, SetA, SetB); // rank the generated regexs by most successful SetA matches which have 0 SetB matches.
+            scores = calculateWeightedScore(scores, SetA, SetB); // rank the generated regexs using weighting algorithm
 
             var remaining = SetA;
             foreach (var score in scores.OrderByDescending(key => key.Value))
@@ -69,6 +71,9 @@ namespace gk.Puzzles.DailyProgrammer
                 
                 result[re.Key] = re.Value;
                 result["[" + re.Key + "]"] = re.Value;
+                result["[" + re.Key + "]*"] = re.Value;
+                result["[" + re.Key + "]+"] = re.Value;
+                result["[" + re.Key + "]?"] = re.Value;
             }
             return result;
         }
@@ -94,6 +99,99 @@ namespace gk.Puzzles.DailyProgrammer
             return results;
         }
 
+        private Dictionary<string, int> calculateWeightedScore(Dictionary<string, int> res, List<string> SetA, List<string> SetB)
+        {
+            /*
+             * List all re and count the words they match to.
+             * List all words and count the re that matches to them
+             * find the word with the lowest number of matches, take re and find the one that matches the highest number of words.
+             * refresh remaining words list by removing matched words.
+             */
+            Dictionary<string, int> results = new Dictionary<string, int>();
+
+            Dictionary<string, int> regexs = new Dictionary<string, int>();
+            Dictionary<string, string> wordMatches = new Dictionary<string, string>();
+
+            // Weed out all of those regexes that are not at least partial matches to our solution.
+            res = res.Where(x => Contains(x.Key, SetA, SetB)).ToDictionary(i=>i.Key, i=>i.Value);
+
+            var remaining = SetA;
+
+            string re = "";
+            while (remaining.Count >0) // keep looping until we find a solution.
+            {
+                regexs = CalculateWeightedScoreForRegexs(res, SetA, SetB, remaining, regexs);
+                wordMatches = CalculateWeightedScoreForWords(res, SetA, SetB, remaining, regexs);
+
+                var lowestMatchers = LowestMatchers(wordMatches); // take the item with the lowest number of matches
+                var highestMatchingRE = "";
+                int matchingCount = 0;
+
+                foreach (var lowestMatcher in lowestMatchers)
+                {
+                    foreach (var kvp in lowestMatcher.Value.Split('\t'))
+                    {
+                        if (regexs.ContainsKey(kvp) && regexs[kvp] > matchingCount)
+                        {
+                            highestMatchingRE = kvp;
+                            matchingCount = regexs[kvp];
+                        }
+                    }
+                }
+                if(highestMatchingRE == "") 
+                    break;
+
+                results[highestMatchingRE] = matchingCount; // Add to our results
+                re = highestMatchingRE + "|" + re;
+                remaining = SetA.Where(x => !Regex.IsMatch(x, re.Substring(0, re.Length - 1))).ToList(); // remove matched items
+            }
+
+            return results;
+        }
+
+        private static Dictionary<string, string> LowestMatchers(Dictionary<string, string> wordMatches)
+        {
+            var result = new Dictionary<string, string>();
+            int highCount = 0;
+            foreach(var item in wordMatches.OrderBy(sre => { return sre.Value.Split('\t').Count().ToString(); }))
+            {
+                int cnt = item.Value.Split('\t').Count();
+                if (highCount == 0)
+                    highCount = cnt;
+                if (highCount != cnt) break; // jump out if we have dropped a cardinality level.
+                result[item.Key] = item.Value;
+            }
+            return result;
+        }
+
+        private Dictionary<string, string> CalculateWeightedScoreForWords(Dictionary<string, int> res, List<string> SetA, List<string> SetB, List<string> remaining, Dictionary<string, int> regexs)
+        {
+            Dictionary<string,string> results = new Dictionary<string, string>();
+            foreach (var item in remaining)
+            {
+                foreach (var re in res)
+                {
+                    if (Regex.IsMatch(item, re.Key))
+                    {
+                        results[item] = !results.ContainsKey(item) ? re.Key : results[item] + "\t" + re.Key;
+                    }
+                }
+            }
+            return results;
+        }
+
+        private Dictionary<string, int> CalculateWeightedScoreForRegexs(Dictionary<string, int> res, List<string> SetA, List<string> SetB, List<string> remaining, Dictionary<string, int> regexs)
+        {
+            foreach (var re in res)
+            {
+                if (!Contains(re.Key, SetA, SetB)) continue; // skip if it does not partially match SetA and none of SetB
+                int score = remaining.Count(s => Regex.IsMatch(s, re.Key)); // a re score is the number of remaining items it matches.
+
+                regexs[re.Key] = score;
+            }
+            return regexs;
+        }
+
         public Dictionary<string,int> GenerateRegexs(string item)
         {
             // generate a 5 character long regex using the inputted item as source.
@@ -101,14 +199,21 @@ namespace gk.Puzzles.DailyProgrammer
             string prepared = "^" + item + "$";
 
             Dictionary<string,int> results = new Dictionary<string, int>();
-
-            // TEST = > ['T','E','S','T']
+            
             for (int x = 0; x < prepared.Length; x++)
             {
                 for (int i = 1; i <= range && i + x <= prepared.Length; i++)
                 {
-                    // ['T','TE',TES','TEST'....]
-                    results[prepared.Substring(x, i)]=0;
+                    var p = prepared.Substring(x, i);
+                    results[p.ToLower()]= 0;
+                    results[p.ToLower() + "+"] = 0;
+                    results[p.ToLower() + "*"] = 0;
+                    results[p.ToLower() + "?"] = 0;
+
+                    results[p.ToUpper()] = 0;
+                    results[p.ToUpper()+"+"] = 0;
+                    results[p.ToUpper() + "*"] = 0;
+                    results[p.ToUpper() + "?"] = 0;
                 }
             }
 
